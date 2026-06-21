@@ -17,38 +17,50 @@ func TestDecodePuidv7(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid puidv7 lowercase",
-			id:      "abc06awcb4f5hzmfey7qwt7s8a6q4",
+			name:    "valid event-id lowercase",
+			id:      "abc_06awcb4f5hzmfey7qwt7s8a6q4",
 			want:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
 			wantErr: false,
 		},
 		{
-			name:    "valid puidv7 with uppercase input",
-			id:      "ABC06AWCB4F5HZMFEY7QWT7S8A6Q4",
+			name:    "valid event-id with uppercase input",
+			id:      "ABC_06AWCB4F5HZMFEY7QWT7S8A6Q4",
+			want:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
+			wantErr: false,
+		},
+		{
+			name:    "valid event-id with 1 char prefix",
+			id:      "a_06awcb4f5hzmfey7qwt7s8a6q4",
+			want:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
+			wantErr: false,
+		},
+		{
+			name:    "valid event-id with 5 char prefix",
+			id:      "abcde_06awcb4f5hzmfey7qwt7s8a6q4",
 			want:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
 			wantErr: false,
 		},
 		{
 			name:    "invalid prefix",
-			id:      "12306AWCB4F5HZMFEY7QWT7S8A6Q4",
+			id:      "123_06AWCB4F5HZMFEY7QWT7S8A6Q4",
 			want:    "",
 			wantErr: true,
 		},
 		{
-			name:    "invalid characters",
-			id:      "abcIIIOOO789abcdefghjkmnpqrstvwx",
+			name:    "invalid characters in payload",
+			id:      "abc_IIIOOO789abcdefghjkmnpqrstvwx",
 			want:    "",
 			wantErr: true,
 		},
 		{
 			name:    "too short",
-			id:      "abc123",
+			id:      "abc_123",
 			want:    "",
 			wantErr: true,
 		},
 		{
 			name:    "too long",
-			id:      "abc123456789abcdefghjkmnpqrstvwxyz123",
+			id:      "abc_123456789abcdefghjkmnpqrstvwxyz123",
 			want:    "",
 			wantErr: true,
 		},
@@ -59,8 +71,14 @@ func TestDecodePuidv7(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "missing separator",
+			id:      "abc06awcb4f5hzmfey7qwt7s8a6q4",
+			want:    "",
+			wantErr: true,
+		},
+		{
 			name:    "special characters",
-			id:      "abc!@#$%^&*()_+{}[]|\\:;<>,.?/~`",
+			id:      "abc_!@#$%^&*()_+{}[]|\\:;<>,.?/~`",
 			want:    "",
 			wantErr: true,
 		},
@@ -80,7 +98,6 @@ func TestDecodePuidv7(t *testing.T) {
 	}
 }
 
-
 func TestEncode(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -93,14 +110,28 @@ func TestEncode(t *testing.T) {
 			name:    "valid uuid and prefix",
 			uuid:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
 			prefix:  "abc",
-			want:    "abc06awcb4f5hzmfey7qwt7s8a6q4",
+			want:    "abc_06awcb4f5hzmfey7qwt7s8a6q4",
 			wantErr: false,
 		},
 		{
 			name:    "valid uuid with spaces",
 			uuid:    "  0195c62c-8f2c-7f47-bbc7-bf347ca146b9  ",
 			prefix:  "xyz",
-			want:    "xyz06awcb4f5hzmfey7qwt7s8a6q4",
+			want:    "xyz_06awcb4f5hzmfey7qwt7s8a6q4",
+			wantErr: false,
+		},
+		{
+			name:    "valid 1-character prefix",
+			uuid:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
+			prefix:  "a",
+			want:    "a_06awcb4f5hzmfey7qwt7s8a6q4",
+			wantErr: false,
+		},
+		{
+			name:    "valid 5-character prefix",
+			uuid:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
+			prefix:  "abcde",
+			want:    "abcde_06awcb4f5hzmfey7qwt7s8a6q4",
 			wantErr: false,
 		},
 		{
@@ -125,7 +156,7 @@ func TestEncode(t *testing.T) {
 			name:    "uuid with uppercase",
 			uuid:    "0195C62C-8F2C-7F47-BBC7-BF347CA146B9",
 			prefix:  "def",
-			want:    "def06awcb4f5hzmfey7qwt7s8a6q4",
+			want:    "def_06awcb4f5hzmfey7qwt7s8a6q4",
 			wantErr: false,
 		},
 		{
@@ -141,9 +172,9 @@ func TestEncode(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "prefix too long",
+			name:    "prefix too long (6 chars)",
 			uuid:    "0195c62c-8f2c-7f47-bbc7-bf347ca146b9",
-			prefix:  "abcd",
+			prefix:  "abcdef",
 			wantErr: true,
 		},
 		{
@@ -175,13 +206,18 @@ func TestNew(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid prefix",
+			name:    "valid 3-char prefix",
 			prefix:  "abc",
 			wantErr: false,
 		},
 		{
-			name:    "another valid prefix",
-			prefix:  "xyz",
+			name:    "valid 1-char prefix",
+			prefix:  "x",
+			wantErr: false,
+		},
+		{
+			name:    "valid 5-char prefix",
+			prefix:  "abcde",
 			wantErr: false,
 		},
 		{
@@ -205,13 +241,8 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "prefix too long",
-			prefix:  "abcd",
-			wantErr: true,
-		},
-		{
-			name:    "prefix too short",
-			prefix:  "ab",
+			name:    "prefix too long (6 chars)",
+			prefix:  "abcdef",
 			wantErr: true,
 		},
 	}
@@ -225,18 +256,18 @@ func TestNew(t *testing.T) {
 			}
 			if !tt.wantErr {
 				// Check that result matches expected pattern
-				expectedPattern := `^` + tt.prefix + `[0-9a-hj-km-np-tv-z]{26}$`
+				expectedPattern := `^` + tt.prefix + `_[0-9a-hj-km-np-tv-z]{26}$`
 				if matched, _ := regexp.MatchString(expectedPattern, got); !matched {
 					t.Errorf("New() = %v, doesn't match expected pattern %v", got, expectedPattern)
 				}
 				// Check that it has the correct prefix
-				if !strings.HasPrefix(got, tt.prefix) {
-					t.Errorf("New() = %v, doesn't have prefix %v", got, tt.prefix)
+				if !strings.HasPrefix(got, tt.prefix+"_") {
+					t.Errorf("New() = %v, doesn't have prefix %v_", got, tt.prefix)
 				}
 				// Check that we can decode it back to a UUID
 				uuid, err := Decode(got, tt.prefix)
 				if err != nil {
-					t.Errorf("New() generated invalid puidv7 that can't be decoded: %v", err)
+					t.Errorf("New() generated invalid ID that can't be decoded: %v", err)
 				}
 				// Check that the UUID has the correct format
 				uuidPattern := `^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
@@ -263,3 +294,4 @@ func TestNewUniqueness(t *testing.T) {
 		generated[id] = true
 	}
 }
+

@@ -136,11 +136,12 @@ Decodes an event-id string back to a UUID. If prefix is provided, validates that
 
 ## Format
 
-- **Prefix**: 3 lowercase letters (a-z)
+- **Prefix**: 1 to 5 lowercase letters (a-z)
+- **Separator**: Underscore `_`
 - **Encoded UUID**: 26 characters using Crockford Base32 alphabet
-- **Total length**: 29 characters
+- **Total length**: 28 to 32 characters (depending on prefix length)
 
-Example: `acc069rz3kw7dyyz2gj28t5cy4tqg`
+Example: `acc_069rz3kw7dyyz2gj28t5cy4tqg`
 
 ## Further Reading
 

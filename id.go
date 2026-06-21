@@ -10,19 +10,24 @@ import (
 	"github.com/google/uuid"
 )
 
-// isValidPrefix checks if a prefix is exactly 3 lowercase letters [a-z].
+// isValidPrefix checks if a prefix is 1 to 5 lowercase letters [a-z].
 func isValidPrefix(prefix string) bool {
-	if len(prefix) != 3 {
+	l := len(prefix)
+	if l < 1 || l > 5 {
 		return false
 	}
-	return (prefix[0] >= 'a' && prefix[0] <= 'z') &&
-		(prefix[1] >= 'a' && prefix[1] <= 'z') &&
-		(prefix[2] >= 'a' && prefix[2] <= 'z')
+	for i := 0; i < l; i++ {
+		c := prefix[i]
+		if c < 'a' || c > 'z' {
+			return false
+		}
+	}
+	return true
 }
 
-// normalizeID normalizes a puidv7 ID by converting to lowercase and removing spaces and hyphens.
-func normalizeID(id string) ([29]byte, error) {
-	var dst [29]byte
+// normalizeID normalizes an ID by converting to lowercase, removing spaces/hyphens,
+// and identifying the prefix and base32 payload indices within the normalized buffer.
+func normalizeID(id string, normalized *[128]byte) (prefixLen int, normLen int, err error) {
 	dstIdx := 0
 
 	for i := 0; i < len(id); i++ {
@@ -35,25 +40,43 @@ func normalizeID(id string) ([29]byte, error) {
 			c = c + ('a' - 'A')
 		}
 
-		if dstIdx >= 29 {
-			return dst, fmt.Errorf("invalid puidv7 format: too long")
+		if dstIdx >= len(normalized) {
+			return 0, 0, fmt.Errorf("invalid ID length")
 		}
-		dst[dstIdx] = c
+		normalized[dstIdx] = c
 		dstIdx++
 	}
 
-	if dstIdx < 29 {
-		return dst, fmt.Errorf("invalid puidv7 format: too short")
-	}
-
-	// Validate that the prefix part contains only lowercase letters [a-z]
-	for idx := 0; idx < 3; idx++ {
-		if dst[idx] < 'a' || dst[idx] > 'z' {
-			return dst, fmt.Errorf("invalid prefix in puidv7 ID")
+	underscoreIdx := -1
+	for i := 0; i < dstIdx; i++ {
+		if normalized[i] == '_' {
+			underscoreIdx = i
+			break
 		}
 	}
 
-	return dst, nil
+	if underscoreIdx == -1 {
+		return 0, 0, fmt.Errorf("invalid format: missing '_' separator")
+	}
+
+	prefixLen = underscoreIdx
+	payloadLen := dstIdx - (underscoreIdx + 1)
+
+	if prefixLen < 1 || prefixLen > 5 {
+		return 0, 0, fmt.Errorf("invalid prefix length: %d", prefixLen)
+	}
+	for i := 0; i < prefixLen; i++ {
+		c := normalized[i]
+		if c < 'a' || c > 'z' {
+			return 0, 0, fmt.Errorf("invalid prefix character %q", c)
+		}
+	}
+
+	if payloadLen != 26 {
+		return 0, 0, fmt.Errorf("invalid payload length: %d (expected 26)", payloadLen)
+	}
+
+	return prefixLen, dstIdx, nil
 }
 
 // Encode encodes a UUID into a prefixed, crockford base32-encoded string
@@ -62,7 +85,6 @@ func Encode(uuidStr string, prefix string) (string, error) {
 		return "", fmt.Errorf("invalid prefix %s", prefix)
 	}
 
-	// Clean UUID string by trimming spaces and removing internal whitespace/hyphens
 	uuidStr = strings.TrimSpace(uuidStr)
 	if strings.Contains(uuidStr, " ") {
 		uuidStr = strings.ReplaceAll(uuidStr, " ", "")
@@ -73,28 +95,31 @@ func Encode(uuidStr string, prefix string) (string, error) {
 		return "", fmt.Errorf("invalid UUID format %s: %w", uuidStr, err)
 	}
 
-	var buf [29]byte
-	copy(buf[0:3], prefix)
-	encodeBase32CrockfordToBuf(buf[3:], u[:])
-	return string(buf[:]), nil
+	var buf [32]byte
+	prefixLen := len(prefix)
+	copy(buf[0:prefixLen], prefix)
+	buf[prefixLen] = '_'
+	encodeBase32CrockfordToBuf(buf[prefixLen+1:prefixLen+1+26], u[:])
+	return string(buf[:prefixLen+1+26]), nil
 }
 
 // Decode decodes a prefixed, crockford base32-encoded string
 // into a UUID string, ensuring the prefix matches the one supplied
 func Decode(id string, prefix string) (string, error) {
-	norm, err := normalizeID(id)
+	var normalized [128]byte
+	prefixLen, normLen, err := normalizeID(id, &normalized)
 	if err != nil {
 		return "", err
 	}
 
 	if prefix != "" {
-		if string(norm[0:3]) != prefix {
-			return "", fmt.Errorf("prefix %s does not match %s", prefix, string(norm[0:3]))
+		if len(prefix) != prefixLen || string(normalized[:prefixLen]) != prefix {
+			return "", fmt.Errorf("prefix %s does not match %s", prefix, string(normalized[:prefixLen]))
 		}
 	}
 
 	var decoded [16]byte
-	n, err := crockfordEncoding.Decode(decoded[:], norm[3:])
+	n, err := crockfordEncoding.Decode(decoded[:], normalized[prefixLen+1:normLen])
 	if err != nil {
 		return "", fmt.Errorf("invalid Base32 string: %w", err)
 	}
@@ -121,10 +146,12 @@ func New(prefix string) (string, error) {
 		return "", err
 	}
 
-	var buf [29]byte
-	copy(buf[0:3], prefix)
-	encodeBase32CrockfordToBuf(buf[3:], uuidv7[:])
-	return string(buf[:]), nil
+	var buf [32]byte
+	prefixLen := len(prefix)
+	copy(buf[0:prefixLen], prefix)
+	buf[prefixLen] = '_'
+	encodeBase32CrockfordToBuf(buf[prefixLen+1:prefixLen+1+26], uuidv7[:])
+	return string(buf[:prefixLen+1+26]), nil
 }
 
 

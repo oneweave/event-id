@@ -14,7 +14,7 @@ func BenchmarkEncode(b *testing.B) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	puidStr := "abc06awcb4f5hzmfey7qwt7s8a6q4"
+	puidStr := "abc_06awcb4f5hzmfey7qwt7s8a6q4"
 	prefix := "abc"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
