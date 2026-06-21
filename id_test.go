@@ -1,7 +1,7 @@
 // Copyright 2025 Nadrama Pty Ltd
 // SPDX-License-Identifier: Apache-2.0
 
-package puidv7
+package eventid
 
 import (
 	"regexp"
@@ -79,6 +79,8 @@ func TestDecodePuidv7(t *testing.T) {
 		})
 	}
 }
+
+
 func TestEncode(t *testing.T) {
 	tests := []struct {
 		name    string

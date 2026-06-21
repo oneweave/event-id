@@ -1,4 +1,4 @@
-module github.com/puidv7/puidv7-go
+module github.com/oneweave/event-id
 
 go 1.23.1
 
